@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Grid Dominion</title>
+<style>
+body { margin:0; background:#111; overflow:hidden; font-family:Arial; }
+#ui {
+ position:absolute;
+ top:10px;
+ left:10px;
+ color:white;
+}
+#gameOver {
+ position:absolute;
+ top:50%;
+ left:50%;
+ transform:translate(-50%,-50%);
+ color:white;
+ display:none;
+ text-align:center;
+}
+button {
+ padding:10px 20px;
+ border:none;
+ background:cyan;
+ cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="ui">
+Health: <span id="health">100</span>
+Level: <span id="level">1</span>
+XP: <span id="xp">0</span>
+</div>
+
+<div id="gameOver">
+<h1>Game Over</h1>
+<button onclick="location.reload()">Restart</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+const TILE = 40;
+const cols = Math.floor(canvas.width / TILE);
+const rows = Math.floor(canvas.height / TILE);
+
+let health = 100;
+let xp = 0;
+let level = 1;
+let enemies = [];
+let wave = 1;
+
+const player = {
+ x: Math.floor(cols/2),
+ y: Math.floor(rows/2),
+ color: "cyan"
+};
+
+const keys = {};
+
+document.addEventListener("keydown", e=>keys[e.key]=true);
+document.addEventListener("keyup", e=>keys[e.key]=false);
+
+function spawnWave() {
+ for(let i=0;i<wave+2;i++){
+  enemies.push({
+   x: Math.floor(Math.random()*cols),
+   y: Math.floor(Math.random()*rows)
+  });
+ }
+}
+spawnWave();
+
+function updatePlayer(){
+ if(keys["ArrowUp"] && player.y>0) player.y--;
+ if(keys["ArrowDown"] && player.y<rows-1) player.y++;
+ if(keys["ArrowLeft"] && player.x>0) player.x--;
+ if(keys["ArrowRight"] && player.x<cols-1) player.x++;
+}
+
+function updateEnemies(){
+ enemies.forEach((e,i)=>{
+  if(e.x < player.x) e.x++;
+  else if(e.x > player.x) e.x--;
+
+  if(e.y < player.y) e.y++;
+  else if(e.y > player.y) e.y--;
+
+  if(e.x===player.x && e.y===player.y){
+   health -= 5;
+   document.getElementById("health").innerText = health;
+   if(health<=0){
+    document.getElementById("gameOver").style.display="block";
+   }
+  }
+ });
+}
+
+function checkProgress(){
+ if(enemies.length===0){
+  wave++;
+  xp+=20;
+  if(xp>=100){
+   level++;
+   xp=0;
+  }
+  document.getElementById("level").innerText=level;
+  document.getElementById("xp").innerText=xp;
+  spawnWave();
+ }
+}
+
+canvas.addEventListener("click", e=>{
+ const rect = canvas.getBoundingClientRect();
+ const mx = Math.floor((e.clientX-rect.left)/TILE);
+ const my = Math.floor((e.clientY-rect.top)/TILE);
+
+ enemies = enemies.filter(e=>{
+  if(e.x===mx && e.y===my){
+   xp+=10;
+   document.getElementById("xp").innerText=xp;
+   return false;
+  }
+  return true;
+ });
+});
+
+function drawGrid(){
+ ctx.strokeStyle="#222";
+ for(let x=0;x<cols;x++){
+  for(let y=0;y<rows;y++){
+   ctx.strokeRect(x*TILE,y*TILE,TILE,TILE);
+  }
+ }
+}
+
+function draw(){
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+ drawGrid();
+
+ ctx.fillStyle=player.color;
+ ctx.fillRect(player.x*TILE,player.y*TILE,TILE,TILE);
+
+ ctx.fillStyle="red";
+ enemies.forEach(e=>{
+  ctx.fillRect(e.x*TILE,e.y*TILE,TILE,TILE);
+ });
+}
+
+function gameLoop(){
+ updatePlayer();
+ updateEnemies();
+ checkProgress();
+ draw();
+ requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+  </html>
