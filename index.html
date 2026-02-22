@@ -84,22 +84,35 @@ fetch(apiURL)
     const gamesDiv = document.getElementById("games");
 
     data.forEach(file => {
-      if(file.name.endsWith(".html") && file.name !== "index.html"){
-        const card = document.createElement("div");
-        card.className = "card";
 
-        const title = document.createElement("h3");
-        title.innerText = file.name.replace(".html","");
-
-        const link = document.createElement("a");
-        link.href = file.name;
-        link.innerText = "Play";
-
-        card.appendChild(title);
-        card.appendChild(link);
-        gamesDiv.appendChild(card);
+      // Show single HTML files
+      if(file.type === "file" && file.name.endsWith(".html") && file.name !== "index.html"){
+        createCard(file.name, file.name);
       }
+
+      // Show folders that likely contain index.html
+      if(file.type === "dir"){
+        createCard(file.name, file.name + "/");
+      }
+
     });
+
+    function createCard(title, link){
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const h3 = document.createElement("h3");
+      h3.innerText = title;
+
+      const a = document.createElement("a");
+      a.href = link;
+      a.innerText = "Open";
+
+      card.appendChild(h3);
+      card.appendChild(a);
+      gamesDiv.appendChild(card);
+    }
+
   });
 </script>
 
