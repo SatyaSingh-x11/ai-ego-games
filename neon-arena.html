@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Neon Arena</title>
+<style>
+body { margin:0; overflow:hidden; background:#000; font-family:Arial; }
+canvas { display:block; }
+#ui {
+ position:absolute; top:20px; left:20px;
+ color:white; font-size:20px;
+}
+#gameOver {
+ position:absolute; top:50%; left:50%;
+ transform:translate(-50%,-50%);
+ text-align:center; color:white;
+ display:none;
+}
+button{
+ padding:10px 20px;
+ background:cyan;
+ border:none;
+ font-size:16px;
+ cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="ui">Score: <span id="score">0</span></div>
+<div id="gameOver">
+<h1>YOU DIED</h1>
+<button onclick="location.reload()">Restart</button>
+</div>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+let score = 0;
+let difficulty = 1;
+let shake = 0;
+let running = true;
+
+const player = {
+ x: canvas.width/2,
+ y: canvas.height/2,
+ vx: 0,
+ vy: 0,
+ radius: 18,
+ speed: 0.6,
+ friction: 0.9,
+ dash: 0
+};
+
+let mouse = {x:0,y:0};
+let keys = {};
+let bullets = [];
+let enemies = [];
+let particles = [];
+
+document.addEventListener("mousemove", e=>{
+ mouse.x=e.clientX;
+ mouse.y=e.clientY;
+});
+document.addEventListener("keydown", e=>keys[e.key]=true);
+document.addEventListener("keyup", e=>keys[e.key]=false);
+
+function spawnEnemy(){
+ const edge = Math.floor(Math.random()*4);
+ let x,y;
+ if(edge===0){x=0;y=Math.random()*canvas.height;}
+ if(edge===1){x=canvas.width;y=Math.random()*canvas.height;}
+ if(edge===2){x=Math.random()*canvas.width;y=0;}
+ if(edge===3){x=Math.random()*canvas.width;y=canvas.height;}
+ enemies.push({x,y,radius:20,speed:1+Math.random()*difficulty});
+}
+setInterval(()=>{ if(running) spawnEnemy(); },1000);
+
+canvas.addEventListener("click",()=>{
+ const angle = Math.atan2(mouse.y-player.y,mouse.x-player.x);
+ bullets.push({
+  x:player.x,
+  y:player.y,
+  dx:Math.cos(angle)*10,
+  dy:Math.sin(angle)*10,
+  radius:5
+ });
+});
+
+function explode(x,y){
+ for(let i=0;i<25;i++){
+  particles.push({
+   x,y,
+   dx:(Math.random()-0.5)*8,
+   dy:(Math.random()-0.5)*8,
+   life:40
+  });
+ }
+ shake=10;
+}
+
+function update(){
+ if(!running) return;
+
+ ctx.save();
+ if(shake>0){
+  ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
+  shake*=0.9;
+ }
+
+ ctx.fillStyle="rgba(0,0,0,0.3)";
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+
+ // movement
+ if(keys["w"]) player.vy -= player.speed;
+ if(keys["s"]) player.vy += player.speed;
+ if(keys["a"]) player.vx -= player.speed;
+ if(keys["d"]) player.vx += player.speed;
+
+ if(keys["Shift"] && player.dash<=0){
+  player.vx*=3;
+  player.vy*=3;
+  player.dash=60;
+ }
+
+ player.vx*=player.friction;
+ player.vy*=player.friction;
+ player.x+=player.vx;
+ player.y+=player.vy;
+
+ if(player.dash>0) player.dash--;
+
+ // draw player
+ ctx.beginPath();
+ ctx.arc(player.x,player.y,player.radius,0,Math.PI*2);
+ ctx.fillStyle="cyan";
+ ctx.shadowColor="cyan";
+ ctx.shadowBlur=20;
+ ctx.fill();
+ ctx.shadowBlur=0;
+
+ // bullets
+ bullets.forEach((b,i)=>{
+  b.x+=b.dx;
+  b.y+=b.dy;
+  ctx.beginPath();
+  ctx.arc(b.x,b.y,b.radius,0,Math.PI*2);
+  ctx.fillStyle="white";
+  ctx.fill();
+ });
+
+ // enemies
+ enemies.forEach((e,ei)=>{
+  const angle=Math.atan2(player.y-e.y,player.x-e.x);
+  e.x+=Math.cos(angle)*e.speed;
+  e.y+=Math.sin(angle)*e.speed;
+
+  ctx.beginPath();
+  ctx.arc(e.x,e.y,e.radius,0,Math.PI*2);
+  ctx.fillStyle="red";
+  ctx.shadowColor="red";
+  ctx.shadowBlur=20;
+  ctx.fill();
+  ctx.shadowBlur=0;
+
+  const dist=Math.hypot(player.x-e.x,player.y-e.y);
+  if(dist<player.radius+e.radius){
+   running=false;
+   document.getElementById("gameOver").style.display="block";
+  }
+
+  bullets.forEach((b,bi)=>{
+   const d=Math.hypot(b.x-e.x,b.y-e.y);
+   if(d<e.radius+b.radius){
+    explode(e.x,e.y);
+    enemies.splice(ei,1);
+    bullets.splice(bi,1);
+    score++;
+    difficulty+=0.05;
+    document.getElementById("score").innerText=score;
+   }
+  });
+ });
+
+ // particles
+ particles.forEach((p,pi)=>{
+  p.x+=p.dx;
+  p.y+=p.dy;
+  p.life--;
+  ctx.fillStyle="orange";
+  ctx.fillRect(p.x,p.y,3,3);
+  if(p.life<=0) particles.splice(pi,1);
+ });
+
+ ctx.restore();
+ requestAnimationFrame(update);
+}
+
+update();
+</script>
+</body>
+</html>
