@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Cyber Hunter 3D</title>
+<style>
+body { margin:0; overflow:hidden; background:#000; font-family:Arial;}
+#ui{
+ position:absolute;
+ top:20px;
+ left:20px;
+ color:white;
+}
+#healthBar{
+ width:200px;
+ height:20px;
+ background:red;
+ margin-top:10px;
+}
+#health{
+ width:100%;
+ height:100%;
+ background:lime;
+}
+</style>
+</head>
+<body>
+
+<div id="ui">
+Score: <span id="score">0</span>
+<div id="healthBar"><div id="health"></div></div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/loaders/GLTFLoader.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const light = new THREE.DirectionalLight(0xffffff,1);
+light.position.set(5,10,5);
+light.castShadow=true;
+scene.add(light);
+
+scene.add(new THREE.AmbientLight(0x404040));
+
+const floorGeo = new THREE.PlaneGeometry(200,200);
+const floorMat = new THREE.MeshStandardMaterial({color:0x111111});
+const floor = new THREE.Mesh(floorGeo,floorMat);
+floor.rotation.x = -Math.PI/2;
+floor.receiveShadow=true;
+scene.add(floor);
+
+let player;
+let enemies = [];
+let bullets = [];
+let score = 0;
+let health = 100;
+
+const loader = new GLTFLoader();
+
+// Load Player Model
+loader.load(
+ 'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
+ gltf=>{
+   player = gltf.scene;
+   player.scale.set(0.5,0.5,0.5);
+   scene.add(player);
+   player.position.set(0,0,0);
+ }
+);
+
+// Spawn Enemy
+function spawnEnemy(){
+ loader.load(
+  'https://threejs.org/examples/models/gltf/Flamingo.glb',
+  gltf=>{
+   const enemy = gltf.scene;
+   enemy.scale.set(0.02,0.02,0.02);
+   enemy.position.set((Math.random()-0.5)*30,0,-30);
+   scene.add(enemy);
+   enemies.push(enemy);
+  }
+ );
+}
+setInterval(spawnEnemy,3000);
+
+camera.position.set(0,5,10);
+
+document.addEventListener("click",()=>{
+ if(!player) return;
+ const bulletGeo = new THREE.SphereGeometry(0.2);
+ const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
+ const bullet = new THREE.Mesh(bulletGeo,bulletMat);
+ bullet.position.copy(player.position);
+ scene.add(bullet);
+ bullets.push(bullet);
+});
+
+function animate(){
+ requestAnimationFrame(animate);
+
+ if(player){
+   player.rotation.y += 0.02;
+ }
+
+ bullets.forEach((b,i)=>{
+   b.position.z -= 0.5;
+ });
+
+ enemies.forEach((e,ei)=>{
+   if(player){
+     e.position.z += 0.03;
+     const dist = e.position.distanceTo(player.position);
+     if(dist<1){
+       health -= 10;
+       document.getElementById("health").style.width = health+"%";
+       scene.remove(e);
+       enemies.splice(ei,1);
+       if(health<=0){
+         alert("Game Over");
+         location.reload();
+       }
+     }
+   }
+ });
+
+ renderer.render(scene,camera);
+}
+animate();
+</script>
+
+</body>
+</html>
