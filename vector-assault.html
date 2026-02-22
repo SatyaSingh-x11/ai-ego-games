@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Vector Assault</title>
+<style>
+body { margin:0; overflow:hidden; background:#0e0e0e; font-family:Arial;}
+canvas { display:block; }
+#ui {
+ position:absolute;
+ top:15px;
+ left:15px;
+ color:white;
+ font-size:18px;
+}
+#gameOver {
+ position:absolute;
+ top:50%;
+ left:50%;
+ transform:translate(-50%,-50%);
+ color:white;
+ text-align:center;
+ display:none;
+}
+button{
+ padding:10px 20px;
+ background:cyan;
+ border:none;
+ cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="ui">
+Health: <span id="health">100</span>
+Score: <span id="score">0</span>
+</div>
+
+<div id="gameOver">
+<h1>Game Over</h1>
+<button onclick="location.reload()">Restart</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+let lastTime = 0;
+let health = 100;
+let score = 0;
+let running = true;
+
+const player = {
+ x: canvas.width/2,
+ y: canvas.height/2,
+ radius: 18,
+ speed: 250
+};
+
+const keys = {};
+const enemies = [];
+
+document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+function spawnEnemy(){
+ let x,y;
+ do{
+   x = Math.random()*canvas.width;
+   y = Math.random()*canvas.height;
+ } while(Math.hypot(x-player.x,y-player.y)<200);
+
+ enemies.push({
+   x,y,
+   radius:15,
+   speed:80
+ });
+}
+
+setInterval(()=>{
+ if(running) spawnEnemy();
+},1500);
+
+function update(delta){
+ if(!running) return;
+
+ // movement
+ if(keys["w"]) player.y -= player.speed * delta;
+ if(keys["s"]) player.y += player.speed * delta;
+ if(keys["a"]) player.x -= player.speed * delta;
+ if(keys["d"]) player.x += player.speed * delta;
+
+ // bounds
+ player.x = Math.max(player.radius, Math.min(canvas.width-player.radius, player.x));
+ player.y = Math.max(player.radius, Math.min(canvas.height-player.radius, player.y));
+
+ enemies.forEach((e,i)=>{
+   const angle = Math.atan2(player.y-e.y, player.x-e.x);
+   e.x += Math.cos(angle)*e.speed*delta;
+   e.y += Math.sin(angle)*e.speed*delta;
+
+   const dist = Math.hypot(player.x-e.x, player.y-e.y);
+   if(dist < player.radius + e.radius){
+     health -= 20;
+     document.getElementById("health").innerText = health;
+     enemies.splice(i,1);
+
+     if(health <= 0){
+       running = false;
+       document.getElementById("gameOver").style.display = "block";
+     }
+   }
+ });
+
+ score += delta*10;
+ document.getElementById("score").innerText = Math.floor(score);
+}
+
+function draw(){
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ // player
+ ctx.beginPath();
+ ctx.arc(player.x,player.y,player.radius,0,Math.PI*2);
+ ctx.fillStyle="cyan";
+ ctx.fill();
+
+ // enemies
+ ctx.fillStyle="red";
+ enemies.forEach(e=>{
+   ctx.beginPath();
+   ctx.arc(e.x,e.y,e.radius,0,Math.PI*2);
+   ctx.fill();
+ });
+}
+
+function gameLoop(timestamp){
+ const delta = (timestamp - lastTime)/1000;
+ lastTime = timestamp;
+
+ update(delta);
+ draw();
+
+ requestAnimationFrame(gameLoop);
+}
+
+spawnEnemy();
+requestAnimationFrame(gameLoop);
+</script>
+
+</body>
+</html>
