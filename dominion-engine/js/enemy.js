@@ -1,17 +1,14 @@
-import { aStar } from "./pathfinding.js";
+update(player,map){
+  if(!this.cooldown) this.cooldown=0;
 
-export class Enemy {
- constructor(x,y){
-   this.x=x;
-   this.y=y;
-   this.path=[];
- }
+  this.cooldown--;
+  if(this.cooldown>0) return;
 
- update(player,map){
-   this.path=aStar({x:this.x,y:this.y},{x:player.x,y:player.y},map);
-   if(this.path.length>1){
-     this.x=this.path[1].x;
-     this.y=this.path[1].y;
-   }
- }
+  this.cooldown = 15; // move every 15 frames
+
+  this.path=aStar({x:this.x,y:this.y},{x:player.x,y:player.y},map);
+  if(this.path.length>1){
+    this.x=this.path[1].x;
+    this.y=this.path[1].y;
+  }
 }
