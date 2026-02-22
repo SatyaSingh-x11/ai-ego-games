@@ -2,7 +2,8 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Vector Assault</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vector Assault Mobile</title>
 <style>
 body { margin:0; overflow:hidden; background:#0e0e0e; font-family:Arial;}
 canvas { display:block; }
@@ -60,15 +61,60 @@ const player = {
  x: canvas.width/2,
  y: canvas.height/2,
  radius: 18,
- speed: 250
+ speed: 250,
+ dx:0,
+ dy:0
 };
 
-const keys = {};
 const enemies = [];
+const bullets = [];
 
-document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
-document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+/* ---------- TOUCH CONTROL ---------- */
+let touchActive = false;
+let touchStart = {x:0,y:0};
 
+canvas.addEventListener("touchstart", e=>{
+ const t = e.touches[0];
+ touchActive = true;
+ touchStart.x = t.clientX;
+ touchStart.y = t.clientY;
+});
+
+canvas.addEventListener("touchmove", e=>{
+ if(!touchActive) return;
+ const t = e.touches[0];
+ const dx = t.clientX - touchStart.x;
+ const dy = t.clientY - touchStart.y;
+
+ const len = Math.hypot(dx,dy);
+ if(len>10){
+   player.dx = dx/len;
+   player.dy = dy/len;
+ }
+});
+
+canvas.addEventListener("touchend", ()=>{
+ touchActive = false;
+ player.dx = 0;
+ player.dy = 0;
+});
+
+/* ---------- DESKTOP CONTROL ---------- */
+const keys = {};
+document.addEventListener("keydown", e=>keys[e.key.toLowerCase()]=true);
+document.addEventListener("keyup", e=>keys[e.key.toLowerCase()]=false);
+
+/* ---------- SHOOT ---------- */
+canvas.addEventListener("click", e=>{
+ bullets.push({
+   x:player.x,
+   y:player.y,
+   dx:0,
+   dy:-400
+ });
+});
+
+/* ---------- ENEMY ---------- */
 function spawnEnemy(){
  let x,y;
  do{
@@ -87,41 +133,63 @@ setInterval(()=>{
  if(running) spawnEnemy();
 },1500);
 
+/* ---------- UPDATE ---------- */
 function update(delta){
  if(!running) return;
 
- // movement
- if(keys["w"]) player.y -= player.speed * delta;
- if(keys["s"]) player.y += player.speed * delta;
- if(keys["a"]) player.x -= player.speed * delta;
- if(keys["d"]) player.x += player.speed * delta;
+ // desktop movement
+ if(keys["w"]) player.y -= player.speed*delta;
+ if(keys["s"]) player.y += player.speed*delta;
+ if(keys["a"]) player.x -= player.speed*delta;
+ if(keys["d"]) player.x += player.speed*delta;
+
+ // touch movement
+ player.x += player.dx * player.speed * delta;
+ player.y += player.dy * player.speed * delta;
 
  // bounds
  player.x = Math.max(player.radius, Math.min(canvas.width-player.radius, player.x));
  player.y = Math.max(player.radius, Math.min(canvas.height-player.radius, player.y));
 
- enemies.forEach((e,i)=>{
+ // bullets
+ bullets.forEach((b,i)=>{
+   b.y += b.dy*delta;
+   if(b.y<0) bullets.splice(i,1);
+ });
+
+ // enemies
+ enemies.forEach((e,ei)=>{
    const angle = Math.atan2(player.y-e.y, player.x-e.x);
    e.x += Math.cos(angle)*e.speed*delta;
    e.y += Math.sin(angle)*e.speed*delta;
 
-   const dist = Math.hypot(player.x-e.x, player.y-e.y);
-   if(dist < player.radius + e.radius){
+   // collision with player
+   if(Math.hypot(player.x-e.x, player.y-e.y) < player.radius+e.radius){
      health -= 20;
      document.getElementById("health").innerText = health;
-     enemies.splice(i,1);
-
-     if(health <= 0){
-       running = false;
-       document.getElementById("gameOver").style.display = "block";
+     enemies.splice(ei,1);
+     if(health<=0){
+       running=false;
+       document.getElementById("gameOver").style.display="block";
      }
    }
+
+   // bullet hit
+   bullets.forEach((b,bi)=>{
+     if(Math.hypot(b.x-e.x, b.y-e.y) < e.radius){
+       enemies.splice(ei,1);
+       bullets.splice(bi,1);
+       score+=10;
+       document.getElementById("score").innerText = score;
+     }
+   });
  });
 
- score += delta*10;
+ score += delta*5;
  document.getElementById("score").innerText = Math.floor(score);
 }
 
+/* ---------- DRAW ---------- */
 function draw(){
  ctx.clearRect(0,0,canvas.width,canvas.height);
 
@@ -138,15 +206,20 @@ function draw(){
    ctx.arc(e.x,e.y,e.radius,0,Math.PI*2);
    ctx.fill();
  });
+
+ // bullets
+ ctx.fillStyle="yellow";
+ bullets.forEach(b=>{
+   ctx.fillRect(b.x-2,b.y-10,4,10);
+ });
 }
 
+/* ---------- LOOP ---------- */
 function gameLoop(timestamp){
- const delta = (timestamp - lastTime)/1000;
+ const delta = (timestamp-lastTime)/1000;
  lastTime = timestamp;
-
  update(delta);
  draw();
-
  requestAnimationFrame(gameLoop);
 }
 
