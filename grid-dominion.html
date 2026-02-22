@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Grid Dominion</title>
+<title>Grid Dominion V2</title>
 <style>
 body { margin:0; background:#111; overflow:hidden; font-family:Arial; }
 #ui {
@@ -34,8 +34,7 @@ button {
 
 <div id="ui">
 Health: <span id="health">100</span>
-Level: <span id="level">1</span>
-XP: <span id="xp">0</span>
+Wave: <span id="wave">1</span>
 </div>
 
 <div id="gameOver">
@@ -54,41 +53,42 @@ const cols = Math.floor(canvas.width / TILE);
 const rows = Math.floor(canvas.height / TILE);
 
 let health = 100;
-let xp = 0;
-let level = 1;
-let enemies = [];
 let wave = 1;
+let enemies = [];
+let gameRunning = true;
 
 const player = {
  x: Math.floor(cols/2),
- y: Math.floor(rows/2),
- color: "cyan"
+ y: Math.floor(rows/2)
 };
 
-const keys = {};
-
-document.addEventListener("keydown", e=>keys[e.key]=true);
-document.addEventListener("keyup", e=>keys[e.key]=false);
-
 function spawnWave() {
+ enemies = [];
  for(let i=0;i<wave+2;i++){
-  enemies.push({
-   x: Math.floor(Math.random()*cols),
-   y: Math.floor(Math.random()*rows)
-  });
+  let ex, ey;
+  do {
+   ex = Math.floor(Math.random()*cols);
+   ey = Math.floor(Math.random()*rows);
+  } while(Math.abs(ex-player.x)<4 && Math.abs(ey-player.y)<4); // safe radius
+
+  enemies.push({x:ex,y:ey});
  }
 }
 spawnWave();
 
-function updatePlayer(){
- if(keys["ArrowUp"] && player.y>0) player.y--;
- if(keys["ArrowDown"] && player.y<rows-1) player.y++;
- if(keys["ArrowLeft"] && player.x>0) player.x--;
- if(keys["ArrowRight"] && player.x<cols-1) player.x++;
-}
+document.addEventListener("keydown", e=>{
+ if(!gameRunning) return;
 
-function updateEnemies(){
- enemies.forEach((e,i)=>{
+ if(e.key==="ArrowUp" && player.y>0) player.y--;
+ if(e.key==="ArrowDown" && player.y<rows-1) player.y++;
+ if(e.key==="ArrowLeft" && player.x>0) player.x--;
+ if(e.key==="ArrowRight" && player.x<cols-1) player.x++;
+});
+
+function moveEnemies(){
+ if(!gameRunning) return;
+
+ enemies.forEach(e=>{
   if(e.x < player.x) e.x++;
   else if(e.x > player.x) e.x--;
 
@@ -96,42 +96,32 @@ function updateEnemies(){
   else if(e.y > player.y) e.y--;
 
   if(e.x===player.x && e.y===player.y){
-   health -= 5;
+   health -= 10;
    document.getElementById("health").innerText = health;
    if(health<=0){
+    gameRunning=false;
     document.getElementById("gameOver").style.display="block";
    }
   }
  });
-}
 
-function checkProgress(){
  if(enemies.length===0){
   wave++;
-  xp+=20;
-  if(xp>=100){
-   level++;
-   xp=0;
-  }
-  document.getElementById("level").innerText=level;
-  document.getElementById("xp").innerText=xp;
+  document.getElementById("wave").innerText=wave;
   spawnWave();
  }
 }
 
+setInterval(moveEnemies, 400);
+
 canvas.addEventListener("click", e=>{
+ if(!gameRunning) return;
+
  const rect = canvas.getBoundingClientRect();
  const mx = Math.floor((e.clientX-rect.left)/TILE);
  const my = Math.floor((e.clientY-rect.top)/TILE);
 
- enemies = enemies.filter(e=>{
-  if(e.x===mx && e.y===my){
-   xp+=10;
-   document.getElementById("xp").innerText=xp;
-   return false;
-  }
-  return true;
- });
+ enemies = enemies.filter(e=>!(e.x===mx && e.y===my));
 });
 
 function drawGrid(){
@@ -147,7 +137,7 @@ function draw(){
  ctx.clearRect(0,0,canvas.width,canvas.height);
  drawGrid();
 
- ctx.fillStyle=player.color;
+ ctx.fillStyle="cyan";
  ctx.fillRect(player.x*TILE,player.y*TILE,TILE,TILE);
 
  ctx.fillStyle="red";
@@ -157,9 +147,6 @@ function draw(){
 }
 
 function gameLoop(){
- updatePlayer();
- updateEnemies();
- checkProgress();
  draw();
  requestAnimationFrame(gameLoop);
 }
@@ -167,4 +154,4 @@ function gameLoop(){
 gameLoop();
 </script>
 </body>
-  </html>
+</html>
