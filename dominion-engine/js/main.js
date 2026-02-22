@@ -1,3 +1,6 @@
+let gameState="menu";
+let score=0;
+let health=100;
 import { Engine } from "./engine.js";
 import { Map } from "./map.js";
 import { Player } from "./player.js";
@@ -21,7 +24,18 @@ document.addEventListener("keydown",e=>{
 });
 
 function update(){
- enemy.update(player,map);
+  if(gameState!=="playing") return;
+
+  enemy.update(player,map);
+
+  if(enemy.x===player.x && enemy.y===player.y){
+    health-=1;
+    if(health<=0){
+      gameState="gameover";
+    }
+  }
+
+  score+=0.05;
 }
 
 function render(){
